@@ -1,0 +1,12 @@
+version: '3'
+services:
+    stream_producer:
+        build: ./stream_producer
+        environment:
+            KAFKA_BROKER_URL: broker:9092
+            KAFKA_TOPIC: streaming.tweets
+    
+networks: 
+    default:
+        external: 
+            name: kafka-network
