@@ -5,6 +5,15 @@ services:
         environment:
             KAFKA_BROKER_URL: broker:9092
             KAFKA_TOPIC: streaming.tweets
+    consumer:
+        build: ./consumer
+        environment:
+            KAFKA_BROKER_URL: broker:9092
+            KAFKA_TOPIC: streaming.tweets
+            ANGER_TOPIC: tweets.anger
+            JOY_TOPIC: tweets.joy
+            OPTIMISM_TOPIC: tweets.optimism
+            SADNESS_TOPIC: tweets.sad
     
 networks: 
     default:
