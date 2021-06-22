@@ -13,11 +13,15 @@ auth = OAuthHandler(api_key, api_secret_key)
 auth.set_access_token(access_token, access_token_secret)
 
 KAFKA_BROKER_URL = os.environ.get('KAFKA_BROKER_URL')
-producer = KafkaProducer(bootstrap_servers=KAFKA_BROKER_URL)
+KAFKA_TOPIC = os.environ.get('KAFKA_TOPIC')
+producer = KafkaProducer(
+    bootstrap_servers=KAFKA_BROKER_URL,
+    value_serializer= lambda value: json.dumps(value).encode())
 
 class StdOutListener(StreamListener):
     def on_status(self, data):
-        producer.send("streaming.tweets", data.text.encode('utf-8'))
+        transaction: dict = {'text': data.text, 'source': data.source}
+        producer.send(KAFKA_TOPIC, transaction)
         return True
     
     def on_error(self, status_code):
