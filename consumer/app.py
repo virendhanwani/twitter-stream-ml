@@ -1,10 +1,14 @@
-from numpy.core.fromnumeric import prod
 from kafka import KafkaConsumer, KafkaProducer
 import os, json
-from transformers import AutoTokenizer, AutoModelForSequenceClassification, TFAutoModelForSequenceClassification
+from transformers import AutoTokenizer, TFAutoModelForSequenceClassification
 import numpy as np
 from scipy.special import softmax
-# from scipy.special import softmax
+from flask import Flask, send_from_directory
+from flask_socketio import SocketIO, emit
+
+app = Flask(__name__)
+socketio = SocketIO(app)
+
 
 KAFKA_BROKER_URL = os.environ.get("KAFKA_BROKER_URL")
 KAFKA_TOPIC = os.environ.get("KAFKA_TOPIC")
@@ -24,33 +28,53 @@ def preprocess(text):
 MODEL = "cardiffnlp/twitter-roberta-base-emotion"
 tokenizer = AutoTokenizer.from_pretrained(MODEL)
 
-model = TFAutoModelForSequenceClassification.from_pretrained(MODEL)  
+model = TFAutoModelForSequenceClassification.from_pretrained('model')
 
-consumer = KafkaConsumer(
-    KAFKA_TOPIC,
-    bootstrap_servers= KAFKA_BROKER_URL,
-    value_deserializer= lambda value: json.loads(value),
-)
+@app.route('/')
+def home():
+    return send_from_directory('/usr/app', 'index.html')
 
-producer = KafkaProducer(
-    bootstrap_servers= KAFKA_BROKER_URL,
-    value_serializer = lambda value: json.dumps(value).encode()
-)
+@socketio.on('connect', namespace='/kafka')
+def test_connect():
+    emit('logs', {'data': 'Connection Established'})
 
-for message in consumer:
-    transaction: dict = message.value
-    text = preprocess(transaction['text'])
-    encoded_input = tokenizer(text, return_tensors='tf')
-    output = model(encoded_input)
-    scores = output[0][0].numpy()
-    scores = softmax(scores)
-    ranking = np.argsort(scores)
-    ranking = ranking[::-1]
-    if ranking[0] == 0:
-        producer.send(ANGER_TOPIC, transaction)
-    elif ranking[0] == 1:
-        producer.send(JOY_TOPIC, transaction)
-    elif ranking[0] == 2:
-        producer.send(OPTIMISM_TOPIC, transaction)
-    else:
-        producer.send(SADNESS_TOPIC, transaction)
+
+@socketio.on('kafkaconsumer', namespace='/kafka')
+def kafkaconsumer():
+    consumer = KafkaConsumer(
+        KAFKA_TOPIC,
+        bootstrap_servers= KAFKA_BROKER_URL,
+        value_deserializer= lambda value: json.loads(value),
+    )
+    producer = KafkaProducer(
+        bootstrap_servers= KAFKA_BROKER_URL,
+        value_serializer = lambda value: json.dumps(value).encode()
+    )
+
+    for message in consumer:
+        transaction: dict = message.value
+        text = preprocess(transaction['text'])
+        emit('kafkaconsumer', {'data': text})
+        encoded_input = tokenizer(text, return_tensors='tf')
+        output = model(encoded_input)
+        scores = output[0][0].numpy()
+        scores = softmax(scores)
+        ranking = np.argsort(scores)
+        ranking = ranking[::-1]
+        if ranking[0] == 0:
+            producer.send(ANGER_TOPIC, transaction)
+            emit('angryproducer', {'data': text})
+        elif ranking[0] == 1:
+            producer.send(JOY_TOPIC, transaction)
+            emit('joyproducer', {'data': text})
+        elif ranking[0] == 2:
+            producer.send(OPTIMISM_TOPIC, transaction)
+            emit('optimismproducer', {'data': text})
+        else:
+            producer.send(SADNESS_TOPIC, transaction)
+            emit('sadproducer', {'data': text})
+
+
+
+if __name__ == '__main__':
+    socketio.run(app, host='0.0.0.0', port=5000)

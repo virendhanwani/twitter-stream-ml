@@ -14,7 +14,8 @@ services:
             JOY_TOPIC: tweets.joy
             OPTIMISM_TOPIC: tweets.optimism
             SADNESS_TOPIC: tweets.sad
-    
+        ports:
+            - 5000:5000
 networks: 
     default:
         external: 

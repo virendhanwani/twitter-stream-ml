@@ -1,0 +1,50 @@
+<html>
+    <head>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js" integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA==" crossorigin="anonymous"></script>
+        <script src="https://code.jquery.com/jquery-3.6.0.js" integrity="sha256-H+K7U5CnXl1h5ywQfKtSj8PCmoN9aaq30gDh27Xc0jk=" crossorigin="anonymous"></script>
+        <script type="text/javascript" charset="utf-8">
+            var socket = io.connect('http://localhost:5000/kafka');
+            socket.on('connect', function() {
+                $('#consumer').append("COnnected")
+                socket.emit('kafkaconsumer');
+            });
+            socket.on('kafkaconsumer', function(msg) {
+                $('#consumer').append('<br>' + $('<div/>').text(msg.data).html());
+            });
+            socket.on('angryproducer', function(msg) {
+                $('#angry').append('<br>' + $('<div/>').text(msg.data).html());
+            });
+            socket.on('joyproducer', function(msg) {
+                $('#joy').append('<br>' + $('<div/>').text(msg.data).html());
+            });
+            socket.on('optimismproducer', function(msg) {
+                $('#optimism').append('<br>' + $('<div/>').text(msg.data).html());
+            });
+            socket.on('sadproducer', function(msg) {
+                $('#sad').append('<br>' + $('<div/>').text(msg.data).html());
+            });
+        </script>
+    </head>
+    <body>
+        <div>
+            <h2>Consumer</h2>
+            <div id="consumer"></div>
+        </div>
+        <div>
+            <h2>Angry</h2>
+            <div id="angry"></div>
+        </div>
+        <div>
+            <h2>Joy</h2>
+            <div id="joy"></div>
+        </div>
+        <div>
+            <h2>Optimism</h2>
+            <div id="optimism"></div>
+        </div>
+        <div>
+            <h2>Sad</h2>
+            <div id="sad"></div>
+        </div>
+    </body>
+</html>
