@@ -5,9 +5,17 @@ import numpy as np
 from scipy.special import softmax
 from flask import Flask, send_from_directory
 from flask_socketio import SocketIO, emit
+from pymongo import MongoClient
 
 app = Flask(__name__)
 socketio = SocketIO(app)
+client = MongoClient('mongodb://root:example@mongo:27017/')
+dbs = client.list_database_names()
+tweetsdb = client['tweetsdb']
+joytweets = tweetsdb['joytweets']
+angrytweets = tweetsdb['angrytweets']
+sadtweets = tweetsdb['sadtweets']
+optimismtweets = tweetsdb['optimismtweets']
 
 
 KAFKA_BROKER_URL = os.environ.get("KAFKA_BROKER_URL")
@@ -26,9 +34,8 @@ def preprocess(text):
     return " ".join(new_text)
 
 MODEL = "cardiffnlp/twitter-roberta-base-emotion"
-tokenizer = AutoTokenizer.from_pretrained(MODEL)
-
-model = TFAutoModelForSequenceClassification.from_pretrained('model')
+tokenizer = AutoTokenizer.from_pretrained('tokenizer')
+model = TFAutoModelForSequenceClassification.from_pretrained('tfmodel')
 
 @app.route('/')
 def home():
@@ -63,15 +70,19 @@ def kafkaconsumer():
         ranking = ranking[::-1]
         if ranking[0] == 0:
             producer.send(ANGER_TOPIC, transaction)
+            angrytweets.insert_one(transaction)
             emit('angryproducer', {'data': text})
         elif ranking[0] == 1:
             producer.send(JOY_TOPIC, transaction)
+            joytweets.insert_one(transaction)
             emit('joyproducer', {'data': text})
         elif ranking[0] == 2:
             producer.send(OPTIMISM_TOPIC, transaction)
+            optimismtweets.insert_one(transaction)
             emit('optimismproducer', {'data': text})
         else:
             producer.send(SADNESS_TOPIC, transaction)
+            sadtweets.insert_one(transaction)
             emit('sadproducer', {'data': text})
 
 
