@@ -1,7 +1,7 @@
 from kafka import KafkaProducer
 from tweepy.streaming import StreamListener
 from tweepy import OAuthHandler, Stream, API
-import os, json
+import os, json, time
 
 api_key = "YOUR_TWITTER_API_KEY"
 api_secret_key = "YOUR_TWITTER_API_SECRET_KEY"
@@ -19,10 +19,20 @@ producer = KafkaProducer(
     value_serializer= lambda value: json.dumps(value).encode())
 
 class StdOutListener(StreamListener):
+    tweet_counter = 0
+    max_tweets = 10000
+
     def on_status(self, data):
         transaction: dict = {'text': data.text, 'source': data.source}
         producer.send(KAFKA_TOPIC, transaction)
-        return True
+        StdOutListener.tweet_counter += 1
+        if StdOutListener.tweet_counter < StdOutListener.max_tweets:
+            return True
+        else:
+            producer.flush()
+            time.sleep(10)
+            producer.close(5)
+            return False
     
     def on_error(self, status_code):
         if status_code == 420:
